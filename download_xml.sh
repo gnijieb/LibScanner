@@ -1,14 +1,15 @@
 #!/usr/bin/env bash
 
 mkdir -p dbs
-cd dbs
-rm *.xml
+cd dbs || exit 1
+rm -f ./*.xml
 
-year=`date +"%Y"`
-for i in $(seq -f "%04g" 2002 $year)
+readonly year=$(date +"%Y")
+for ii in $(seq -f "%04g" 2002 "${year}")
 do
-    wget https://nvd.nist.gov/download/nvdcve-$i.xml.gz
-    gunzip nvdcve-$i.xml.gz
+    echo "Fetching CVE data for ${ii}..."
+    wget -q "https://nvd.nist.gov/download/nvdcve-${ii}.xml.gz" || exit 1
+    gunzip "nvdcve-${ii}.xml.gz" || exit 1
 done
 
-rm *.gz
+rm -f ./*.gz
