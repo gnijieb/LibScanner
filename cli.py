@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-from __future__ import print_function
+
 """
 Command Line Interface for the CVE lookup. See README for more information
 """
@@ -44,14 +44,14 @@ if args.ignore_file is not None:
             ignored_control_lookup[cve_id] = cve_control
 
 
-num_cves = sum(len(x) for x in cves.values())
-num_failed_cves = sum(len([e for e in x if (e['@name'] not in ignore_list and float(e['@CVSS_score']) >= args.fail)]) for x in cves.values())
+num_cves = sum(len(x) for x in list(cves.values()))
+num_failed_cves = sum(len([e for e in x if (e['@name'] not in ignore_list and float(e['@CVSS_score']) >= args.fail)]) for x in list(cves.values()))
 
 # print the xml header
 print('<?xml version="1.0" encoding="UTF-8" ?>')
 #print '<testsuites tests="{0}" failures="{0}" > '.format(num_cves)
 print('<testsuite id="CVE TEST" name="CVE TEST" tests="{0}" failures="{1}">'.format(num_cves, num_failed_cves))
-for package_name, info in cves.iteritems():
+for package_name, info in cves.items():
 
     for e in info:
         print('<testcase id="{0}" name="{0}" classname="{1}" time="0">'.format(e['@name'], package_name))
