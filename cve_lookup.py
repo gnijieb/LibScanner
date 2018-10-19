@@ -14,7 +14,6 @@ import os
 xmlstring = []
 
 
-
 def parse_dbs(folder):
     """
     parse the XML dbs and build an in-memory lookup
@@ -22,9 +21,9 @@ def parse_dbs(folder):
     :return:
     """
     root = None
-    for filename in glob.glob(folder+'/*.xml'):
+    for filename in glob.glob(folder + '/*.xml'):
         with open(filename) as f:
-            db_string = f.read() # remove the annoying namespace
+            db_string = f.read()  # remove the annoying namespace
             db_string = re.sub(' xmlns="[^"]+"', '', db_string, count=1)
             # xmlstring.append(db_string)
             data = ET.fromstring(db_string)
@@ -36,7 +35,7 @@ def parse_dbs(folder):
     return root
 
 
-#root = ET.fromstring("\n".join(xmlstring))
+# root = ET.fromstring("\n".join(xmlstring))
 # namespace ="http://nvd.nist.gov/feeds/cve/1.2"
 
 def etree_to_dict(t):
@@ -52,14 +51,14 @@ def etree_to_dict(t):
         for dc in map(etree_to_dict, children):
             for k, v in dc.items():
                 dd[k].append(v)
-        d = {t.tag: {k:v[0] if len(v) == 1 else v for k, v in iter(dd.items())}}
+        d = {t.tag: {k: v[0] if len(v) == 1 else v for k, v in iter(dd.items())}}
     if t.attrib:
         d[t.tag].update(('@' + k, v) for k, v in iter(t.attrib.items()))
     if t.text:
         text = t.text.strip()
         if children or t.attrib:
             if text:
-              d[t.tag]['#text'] = text
+                d[t.tag]['#text'] = text
         else:
             d[t.tag] = text
     return d
@@ -89,6 +88,7 @@ def get_packages_swid(package_list):
 
     return errors, packages
 
+
 def get_packages_rpm(package_list):
     """
     Get the packages from an rpm string
@@ -106,6 +106,32 @@ def get_packages_rpm(package_list):
             # print "\t".join([path, name, verrel, version, release, platform])
         else:
             errors.append('ERROR: Invalid name: %s\n' % x)
+
+    return errors, packages
+
+
+def get_packages_yocto(package_list):
+    """ Get packages from a Bitbake build history, which look like
+        apt_1.2.24-r0_armhf.deb
+    """
+
+    package_strs = package_list.split("\n")
+    packages = defaultdict(set)
+    errors = []
+
+    for ii in package_strs:
+
+        # (.*/)*(.*?)_    Grab everything up to the first underscore
+        #                 Anything before the last / is a path, the rest is the name
+        # (.*)-(r[0-9]+)_ Two chunks before the next underscore:
+        #                 version string and release number
+        # ([^\.]*).(.*)   Platform and file extension
+        mm = re.search(r'(.*/)*(.*?)_(.*)-(r[0-9]+)_([^\.]*).(.*)', ii)
+        if mm:
+            path, name, version, release, platform, extension = mm.groups()
+            packages[name].add(version)
+        else:
+            errors.append('ERROR: Invalid name: {}\n'.format(ii))
 
     return errors, packages
 
@@ -134,6 +160,7 @@ def get_packages_ls(package_list):
             errors.append('ERROR: Invalid name: %s\n' % x)
 
     return errors, packages
+
 
 def get_packages_wmic(package_list):
     """
@@ -170,7 +197,6 @@ def get_packages_wmic(package_list):
         except ValueError:  # thrown if there was <2 words in the string
             pass
 
-
     for line in package_strs:
         try:
             columns = line.split(",")
@@ -194,7 +220,7 @@ def get_packages_wmic(package_list):
     return errors, packages
 
 
-formats = {"swid": get_packages_swid, "rpm": get_packages_rpm, "yocto": get_packages_rpm,
+formats = {"swid": get_packages_swid, "rpm": get_packages_rpm, "yocto": get_packages_yocto,
            "ls": get_packages_ls, "wmic": get_packages_wmic}
 
 
@@ -205,8 +231,8 @@ def get_package_dict(package_list, list_format=None):
     :param list_format: The format of package_list
     :return:
     """
-    #strip extraneous whitespace
-    package_list =package_list.strip()
+    # strip extraneous whitespace
+    package_list = package_list.strip()
     # if format is none, try and auto-detect
     if list_format is None:
         # if we're XML, then we're probably swid
