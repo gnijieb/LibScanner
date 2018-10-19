@@ -252,8 +252,13 @@ def get_vulns(packages, root):
                             # if we match the version exactly, or
                             # we have a previous version installed and it includes previous versions
                             # then add it to our intersection
-                            if iv == version_number or (prev and LooseVersion(iv) < loose_version_number):
-                                intersection.add(iv)
+                            try:
+                                if iv == version_number or (prev and LooseVersion(iv) < loose_version_number):
+                                    intersection.add(iv)
+                            except Exception:
+                                print('Error parsing version for package.', file=sys.stderr)
+                                print('    Attributes: {}'.format(prod.attrib), file=sys.stderr)
+                                print('    Installed Version: {}'.format(installed_vers), file=sys.stderr)
 
                     if len(intersection) > 0:
                         si = ' - ' + ','.join(intersection)
