@@ -1,18 +1,17 @@
-This is a simple flask app that parses RPM or SWID package lists and runs them through the NVD.
+# Simple Vulnerability Scanner
 
-To get this working you will need to download a copy of the NVD here: https://nvd.nist.gov/download.cfm#CVE_FEED
-and put the xml files in the dbs folder.
+A tool to compare a package list to the National Vulnerability Database's CVE list and report on vulnerabilities found.
 
-You can run download_xml.sh to do this for you automatically. 
+### Usage
 
+Create a Python 3 virtual environment and install `requirements.txt`
 
-The command line interface is similar but outputs a JUnit style XML document for automated continuous integration.
-To get the package list of your install:
+Run `./download_cves.sh` to fetch vulnerability data from the NVD. Downloaded files will be placed in a `cves` directory in the current working directory.
 
-yocto - Follow the instructions in the yocto manual and paste the contents of installed-packages.txt below.
-rpm - run 'rpm -qa' in the terminal and paste the ouput below
-other - 'pip install swid_generator && swid_generator swid' in the terminal and paste the output below
+Run `python3 ./cli.py installed-packages.txt cves/ -f yocto`. `installed-packages.txt` is output from our Yocto build, and `cves/` is the directory created above.
 
-run package-cve-lookup -h for more information on using the command line interface
+The tool will compare the package list to the NVD data and print results to stdout. Output is in the form of failing JUnit tests, for easy inclusion in a CI pipeline.
 
+#### Origins
 
+Originally sourced from https://github.com/DanBeard/LibScanner, brought up to Python 3, and stripped down to a subset of functionality needed by Vorne.

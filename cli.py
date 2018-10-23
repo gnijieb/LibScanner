@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 """
 Command Line Interface for the CVE lookup. See README for more information
@@ -13,7 +13,7 @@ NIST_URL = "https://web.nvd.nist.gov/view/vuln/detail?vulnId="
 parser = argparse.ArgumentParser(description=("Lookup known vulnerabilities from yocto/RPM/SWID in the CVE. "
                                               "Output in JUnit style XML where a CVE = failure"))
 parser.add_argument("packages", help="The list of packages to run through the lookup", type=open)
-parser.add_argument("db_loc", help="The folder that holds the CVE xml database files", type=str)
+parser.add_argument("cve_loc", help="The folder that holds the CVE xml database files", type=str)
 parser.add_argument("-f", "--format", help="The format of the packages", choices=["swid", "rpm", 'yocto', 'ls'], default=None)
 parser.add_argument("-a", "--fail", help="Severity value [0-10] over which it will be a FAILURE", type=float, default=3)
 parser.add_argument("-i", "--ignore_file", help="""A File containing a new-line delimited list of specific CVE's to ignore
@@ -21,7 +21,7 @@ parser.add_argument("-i", "--ignore_file", help="""A File containing a new-line 
 
 args = parser.parse_args()
 
-root = parse_dbs(args.db_loc)
+root = parse_dbs(args.cve_loc)
 
 errors, packages = get_package_dict(args.packages.read(), args.format)
 cves = get_vulns(packages, root)

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
-mkdir -p dbs
-cd dbs || exit 1
+mkdir -p cves
+cd cves || exit 1
 rm -f ./*.xml
 
 readonly year=$(date +"%Y")
