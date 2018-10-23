@@ -22,8 +22,8 @@ def parse_dbs(folder):
     """
     root = None
     for filename in glob.glob(folder + '/*.xml'):
-        with open(filename) as f:
-            db_string = f.read()  # remove the annoying namespace
+        with open(filename, encoding='utf-8') as ff:
+            db_string = ff.read()  # remove the annoying namespace
             db_string = re.sub(' xmlns="[^"]+"', '', db_string, count=1)
             # xmlstring.append(db_string)
             data = ET.fromstring(db_string)
