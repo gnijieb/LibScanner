@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>Vulnerabilities</title>
+<style>
+.header {
+    font-family: sans-serif;
+    font-size: 1.2rem;
+    font-weight: bold;
+}
+
+.description {
+    font-family: sans-serif;
+    font-size: .9rem;
+}
+
+td, th {
+    border: 1px solid rgb(190, 190, 190);
+    padding: 10px;
+    text-align: left;
+}
+
+tr:nth-child(even) {
+    background-color: #eee;
+}
+
+th[scope="col"] {
+    background-color: #696969;
+    color: #fff;
+}
+
+th[scope="row"] {
+    background-color: #d7d9f2;
+}
+
+.col-id {
+    min-width: 150px;
+}
+
+.col-package {
+    min-width: 120px;
+}
+
+caption {
+    padding: 10px;
+    caption-side: bottom;
+}
+
+table {
+    table-layout: auto;
+    border-collapse: collapse;
+    border: 2px solid rgb(200, 200, 200);
+    letter-spacing: 1px;
+    font-family: sans-serif;
+    font-size: .8rem;
+}
+</style>
+</head>
+
+<body>
+    <p class="header">Important Vulnerabilities</p>
+    <p class="description">Vulnerabilities with a severity value over {{ severity_threshold }}.</p>
+    <table>
+        <tr>
+            <th class="col-id" scope="col">ID</th>
+            <th class="col-package" scope="col">Package</th>
+            <th scope="col">Description</th>
+            <th scope="col">Severity</th>
+        </tr>
+        {% for vuln in high_vulns %}
+        <tr>
+            <th scope="row"><a href="{{ vuln.link }}">{{ vuln.id }}</a></th>
+            <td>{{ vuln.package }}</td>
+            <td>{{ vuln.description }}</td>
+            <td>{{ vuln.severity }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+    <hr/>
+
+    <p class="header">Warnings</p>
+    <p class="description">Vulnerabilities with a severity value under {{ severity_threshold }}.</p>
+    <table>
+        <tr>
+            <th class="col-id" scope="col">ID</th>
+            <th class="col-package" scope="col">Package</th>
+            <th scope="col">Description</th>
+            <th scope="col">Severity</th>
+        </tr>
+        {% for vuln in low_vulns %}
+        <tr>
+            <th scope="row"><a href="{{ vuln.link }}">{{ vuln.id }}</a></th>
+            <td>{{ vuln.package }}</td>
+            <td>{{ vuln.description }}</td>
+            <td>{{ vuln.severity }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+    <hr/>
+
+    <p class="header">Ignored</p>
+    <p class="description">Vulnerabilities that have been marked as ignored.</p>
+    <table>
+        <tr>
+            <th class="col-id" scope="col">ID</th>
+            <th class="col-package" scope="col">Package</th>
+            <th scope="col">Description</th>
+            <th scope="col">Severity</th>
+            <th scope="col">Mitigation</th>
+        </tr>
+        {% for vuln in ignored_vulns %}
+        <tr>
+            <th scope="row"><a href="{{ vuln.link }}">{{ vuln.id }}</a></th>
+            <td>{{ vuln.package }}</td>
+            <td>{{ vuln.description }}</td>
+            <td>{{ vuln.severity }}</td>
+            <td>{{ vuln.mitigation }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+    <hr/>
+</body>
+</html>
