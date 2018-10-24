@@ -1,80 +1,86 @@
 #!/usr/bin/env python3
 
-"""
-Command Line Interface for the CVE lookup. See README for more information
-"""
+
 from cve_lookup import parse_dbs, get_package_dict, get_vulns
+import jinja2
 import argparse
-import html
+
 
 # NIST url to link to CVEs
-NIST_URL = "https://web.nvd.nist.gov/view/vuln/detail?vulnId="
+NIST_URL = 'https://web.nvd.nist.gov/view/vuln/detail?vulnId={}'
 
-parser = argparse.ArgumentParser(description=("Lookup known vulnerabilities from yocto/RPM/SWID in the CVE. "
-                                              "Output in JUnit style XML where a CVE = failure"))
-parser.add_argument("packages", help="The list of packages to run through the lookup", type=open)
-parser.add_argument("cve_loc", help="The folder that holds the CVE xml database files", type=str)
-parser.add_argument("-f", "--format", help="The format of the packages", choices=["swid", "rpm", 'yocto', 'ls'], default=None)
-parser.add_argument("-a", "--fail", help="Severity value [0-10] over which it will be a FAILURE", type=float, default=3)
-parser.add_argument("-i", "--ignore_file", help="""A File containing a new-line delimited list of specific CVE's to ignore
- (e.g.  CVE-2015-7697 ) . These CVE's will show up as skipped in the report""", type=open)
+parser = argparse.ArgumentParser(description=('Lookup known vulnerabilities from yocto/RPM/SWID in the CVE. '
+                                              'Output in JUnit style XML where a CVE = failure'))
+parser.add_argument('packages', help='The list of packages to run through the lookup')
+parser.add_argument('cve_loc', help='The folder that holds the CVE xml database files', type=str)
+parser.add_argument('output', help='The output html file to write.')
+parser.add_argument('-f', '--format', help='The format of the packages', choices=['swid', 'rpm', 'yocto', 'ls'], default=None)
+parser.add_argument('-t', '--severity_threshold', help='Value [0-10] over which CVEs will be considered severe.', type=float, default=3)
+parser.add_argument('-i', '--ignore_file', help=('CSV containing a list of specific CVEs to ignore. '
+                                                 'These CVEs will show up as skipped in the report'))
 
 args = parser.parse_args()
 
 root = parse_dbs(args.cve_loc)
 
-errors, packages = get_package_dict(args.packages.read(), args.format)
+with open(args.packages) as ff:
+    errors, packages = get_package_dict(ff.read(), args.format)
 cves = get_vulns(packages, root)
 
-# get the ignore list
-ignore_list = set()
-ignored_control_lookup = {}
+ignore_source = {}
 if args.ignore_file is not None:
-    # first column is CVE, 2nd column is human readable description of control taken
-    # eg: CVE-2015-7696 , Device shall never allow decompression of arbitrary zip files
-    for line in args.ignore_file:
-        cols = line.split(",")  # split on ,
-        if len(cols) > 0:
-            cve_id = cols[0].strip()
-            cve_control = "N/A"
-            if len(cols) > 1:
-                cve_control = cols[1]
-            # add them to the list
-            ignore_list.add(cve_id)
-            ignored_control_lookup[cve_id] = cve_control
+    with open(args.ignore_file) as ff:
+        # First column is CVE ID, second column is human readable description of mitigation
+        # eg: CVE-2015-7696, Device shall never allow decompression of arbitrary zip files
+        for line in args.ignore_file:
+            cols = line.split(',')
+            if len(cols) > 0:
+                cve_id = cols[0].strip()
+                mitigation = cols[1] if len(cols) > 1 else 'N/A'
+                ignore_source[cve_id] = mitigation
 
 
-num_cves = sum(len(x) for x in list(cves.values()))
-num_failed_cves = sum(len([e for e in x if (e['@name'] not in ignore_list and float(e['@CVSS_score']) >= args.fail)]) for x in list(cves.values()))
-
-# print the xml header
-print('<?xml version="1.0" encoding="UTF-8" ?>')
-print('<testsuite id="CVE TEST" name="CVE TEST" tests="{0}" failures="{1}">'.format(num_cves, num_failed_cves))
+high_vulns = []
+low_vulns = []
+ignored_vulns = []
 for package_name, info in cves.items():
-
-    for e in info:
-        print('<testcase id="{0}" name="{0}" classname="{1}" time="0">'.format(e['@name'], package_name))
+    for ii in info:
+        data = {
+            'id': ii['@name'],
+            'package': package_name,
+            'severity': float(ii['@CVSS_score']),
+            'published': ii['@published'],
+            'link': NIST_URL.format(ii['@name']),
+        }
         try:
-            # always warn, but fail if we're above the failure threshold
-            sev = "failure" if float(e['@CVSS_score']) >= args.fail else "warning"
+            data['description'] = ii['desc']['descript']['#text']
+        except TypeError:
+            # Sometimes there are multiple descriptions, just try to use the first one.
+            data['description'] = ii['desc']['descript'][0]['#text']
+        except Exception:
+            data['description'] = ''
 
-            try:
-                description = html.escape(e['desc']['descript']['#text'])
-            except Exception:
-                description = ""
+        if data['id'] in ignore_source:
+            data['ignored'] = True
+            data['mitigation'] = ignore_source[data['id']]
+            ignored_vulns.append(data)
+        else:
+            if data['severity'] > args.severity_threshold:
+                high_vulns.append(data)
+            else:
+                low_vulns.append(data)
 
-            # mark any CVEs in the ignore_list as skipped
-            if e['@name'] in ignore_list:
-                sev = "skipped"
-                # append the mitigating control
-                description += "\n\n Controlled by: " + ignored_control_lookup[e['@name']]
+for vuln_list in [high_vulns, low_vulns, ignored_vulns]:
+    vuln_list.sort(key=lambda ii: ii['severity'], reverse=True)
 
-            print("<{0}> {6} ({1}) - {2} \n\n {3} {4} {5} </{0}>".format(sev, e['@CVSS_score'], description,
-                                                                         e['@type'], "Published on: " + e['@published'],
-                                                                         NIST_URL + e['@name'], e['@severity']))
-        except Exception as e:
-            print('<error>{0}</error>'.format(str(e)))
+jinja_env = jinja2.Environment(loader=jinja2.FileSystemLoader('templates'),
+                               autoescape=jinja2.select_autoescape(['html', 'xml']))
 
-        print('</testcase>')
+template = jinja_env.get_template('output.html')
+html = template.render(severity_threshold=args.severity_threshold,
+                       high_vulns=high_vulns,
+                       low_vulns=low_vulns,
+                       ignored_vulns=ignored_vulns)
 
-print("</testsuite>")
+with open(args.output, 'w') as ff:
+    ff.write(html)
