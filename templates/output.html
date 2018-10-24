@@ -58,7 +58,7 @@ table {
 </head>
 
 <body>
-    <p class="header">Important Vulnerabilities</p>
+    <p class="header">Important Vulnerabilities ({{ high_vulns|length }})</p>
     <p class="description">Vulnerabilities with a severity value over {{ severity_threshold }}.</p>
     <table>
         <tr>
@@ -78,7 +78,8 @@ table {
     </table>
     <hr/>
 
-    <p class="header">Warnings</p>
+    {% if low_vulns|length > 0 %}
+    <p class="header">Warnings ({{ low_vulns|length }})</p>
     <p class="description">Vulnerabilities with a severity value under {{ severity_threshold }}.</p>
     <table>
         <tr>
@@ -97,27 +98,30 @@ table {
         {% endfor %}
     </table>
     <hr/>
+    {% endif %}
 
-    <p class="header">Ignored</p>
+    {% if ignored_vulns|length > 0 %}
+    <p class="header">Ignored ({{ ignored_vulns|length }})</p>
     <p class="description">Vulnerabilities that have been marked as ignored.</p>
     <table>
         <tr>
             <th class="col-id" scope="col">ID</th>
             <th class="col-package" scope="col">Package</th>
             <th scope="col">Description</th>
-            <th scope="col">Severity</th>
             <th scope="col">Mitigation</th>
+            <th scope="col">Severity</th>
         </tr>
         {% for vuln in ignored_vulns %}
         <tr>
             <th scope="row"><a href="{{ vuln.link }}">{{ vuln.id }}</a></th>
             <td>{{ vuln.package }}</td>
             <td>{{ vuln.description }}</td>
-            <td>{{ vuln.severity }}</td>
             <td>{{ vuln.mitigation }}</td>
+            <td>{{ vuln.severity }}</td>
         </tr>
         {% endfor %}
     </table>
     <hr/>
+    {% endif %}
 </body>
 </html>
