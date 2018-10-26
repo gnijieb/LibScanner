@@ -63,6 +63,22 @@ def _main():
                 except Exception:
                     data['description'] = ''
 
+                try:
+                    # If there's only one refence, look for a patch indicator.
+                    refs = ii['refs']['ref']
+                    if '@patch' in refs and refs['@patch'] in [1, '1']:
+                        data['patch_available'] = True
+                except Exception:
+                    pass
+
+                # If there is more than one reference, this will be a list
+                try:
+                    for rr in ii['refs']['ref']:
+                        if '@patch' in rr and rr['@patch'] in [1, '1']:
+                            data['patch_available'] = True
+                except Exception:
+                    pass
+
                 if data['id'] in ignore_source:
                     data['ignored'] = True
                     data['mitigation'] = ignore_source[data['id']]

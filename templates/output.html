@@ -33,13 +33,10 @@ th[scope="row"] {
     background-color: #d7d9f2;
 }
 
-.col-id {
-    min-width: 150px;
-}
-
-.col-package {
-    min-width: 120px;
-}
+.col-id { min-width: 150px; }
+.col-package { min-width: 120px; }
+.td-patch { text-align: center; }
+.td-numeric { text-align: right; }
 
 caption {
     padding: 10px;
@@ -65,14 +62,16 @@ table {
             <th class="col-id" scope="col">ID</th>
             <th class="col-package" scope="col">Package</th>
             <th scope="col">Description</th>
+            <th scope="col">Patch Avail.</th>
             <th scope="col">Severity</th>
         </tr>
         {% for vuln in high_vulns %}
         <tr>
-            <th scope="row"><a href="{{ vuln.link }}">{{ vuln.id }}</a></th>
-            <td>{{ vuln.package }}</td>
+            <th class="col-id" scope="row"><a href="{{ vuln.link }}">{{ vuln.id }}</a></th>
+            <td class="col-package">{{ vuln.package }}</td>
             <td>{{ vuln.description }}</td>
-            <td>{{ vuln.severity }}</td>
+            <td class="td-patch">{{ '&#10004;'|safe if vuln.patch_available else '' }}</td>
+            <td class="td-numeric">{{ vuln.severity }}</td>
         </tr>
         {% endfor %}
     </table>
@@ -86,14 +85,16 @@ table {
             <th class="col-id" scope="col">ID</th>
             <th class="col-package" scope="col">Package</th>
             <th scope="col">Description</th>
+            <th scope="col">Patch Avail.</th>
             <th scope="col">Severity</th>
         </tr>
         {% for vuln in low_vulns %}
         <tr>
-            <th scope="row"><a href="{{ vuln.link }}">{{ vuln.id }}</a></th>
-            <td>{{ vuln.package }}</td>
+            <th class="col-id" scope="row"><a href="{{ vuln.link }}">{{ vuln.id }}</a></th>
+            <td class="col-package">{{ vuln.package }}</td>
             <td>{{ vuln.description }}</td>
-            <td>{{ vuln.severity }}</td>
+            <td class="td-patch">{{ '&#10004;'|safe if vuln.patch_available else '' }}</td>
+            <td class="td-numeric">{{ vuln.severity }}</td>
         </tr>
         {% endfor %}
     </table>
@@ -101,23 +102,25 @@ table {
     {% endif %}
 
     {% if ignored_vulns|length > 0 %}
-    <p class="header">Ignored ({{ ignored_vulns|length }})</p>
-    <p class="description">Vulnerabilities that have been marked as ignored.</p>
+    <p class="header">Evaluated ({{ ignored_vulns|length }})</p>
+    <p class="description">Vulnerabilities that have been evaluated and do not require patching at this time.</p>
     <table>
         <tr>
             <th class="col-id" scope="col">ID</th>
             <th class="col-package" scope="col">Package</th>
             <th scope="col">Description</th>
             <th scope="col">Mitigation</th>
+            <th scope="col">Patch Avail.</th>
             <th scope="col">Severity</th>
         </tr>
         {% for vuln in ignored_vulns %}
         <tr>
-            <th scope="row"><a href="{{ vuln.link }}">{{ vuln.id }}</a></th>
-            <td>{{ vuln.package }}</td>
+            <th class="col-id" scope="row"><a href="{{ vuln.link }}">{{ vuln.id }}</a></th>
+            <td class="col-package">{{ vuln.package }}</td>
             <td>{{ vuln.description }}</td>
             <td>{{ vuln.mitigation }}</td>
-            <td>{{ vuln.severity }}</td>
+            <td class="td-patch">{{ '&#10004;'|safe if vuln.patch_available else '' }}</td>
+            <td class="td-numeric">{{ vuln.severity }}</td>
         </tr>
         {% endfor %}
     </table>
