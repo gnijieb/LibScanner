@@ -112,7 +112,7 @@ def get_packages_rpm(package_list):
 
 def get_packages_yocto(package_list):
     """ Get packages from a Bitbake build history, which look like
-        apt_1.2.24-r0_armhf.deb
+        systemd_1:242+0+07f0549ffe-r0_armhf.deb
     """
 
     package_strs = package_list.split("\n")
@@ -121,12 +121,14 @@ def get_packages_yocto(package_list):
 
     for ii in package_strs:
 
-        # (.*/)*(.*?)_    Grab everything up to the first underscore
+        # (.*/)*(.*?)_    Grab everything up to the first underscore (e.g., "" and "systemd")
         #                 Anything before the last / is a path, the rest is the name
-        # (.*)-(r[0-9]+)_ Two chunks before the next underscore:
-        #                 version string and release number
-        # ([^\.]*).(.*)   Platform and file extension
-        mm = re.search(r'(.*/)*(.*?)_(.*)-(r[0-9]+)_([^\.]*).(.*)', ii)
+        # (?:[0-9]+:)?    Non-capturing group that ignores "Package Epoch" (e.g., "1:")
+        # (.?)            Version string (e.g., "242")
+        # (?:\+.*)?       Non-capturing group for optional patch commits (e.g., "+0+07f0549ffe")
+        # -(r[0-9]+)_     Release number (e.g., "r0")
+        # ([^\.]*).(.*)   Platform and file extension (e.g., "armhf" and "deb")
+        mm = re.search(r'(.*/)*(.*?)_(?:[0-9]+:)?(.*?)(?:\+.*)?-(r[0-9.]+)_([^\.]*).(.*)', ii)
         if mm:
             path, name, version, release, platform, extension = mm.groups()
             packages[name].add(version)
