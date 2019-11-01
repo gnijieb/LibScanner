@@ -49,35 +49,21 @@ def _main():
         for package_name, info in cves.items():
             for ii in info:
                 data = {
-                    'id': ii['@name'],
+                    'id': ii['id'],
                     'package': package_name,
-                    'severity': float(ii['@CVSS_score']),
-                    'published': ii['@published'],
-                    'link': NIST_URL.format(ii['@name']),
+                    'severity': float(ii['impact']['baseMetricV2']['cvssV2']['baseScore']),
+                    'published': ii['published'],
+                    'link': NIST_URL.format(ii['id']),
+                    'patch_available': ii['patch_available']
                 }
+
                 try:
-                    data['description'] = ii['desc']['descript']['#text']
+                    data['description'] = ii['description']
                 except TypeError:
                     # Sometimes there are multiple descriptions, just try to use the first one.
                     data['description'] = ii['desc']['descript'][0]['#text']
                 except Exception:
                     data['description'] = ''
-
-                try:
-                    # If there's only one refence, look for a patch indicator.
-                    refs = ii['refs']['ref']
-                    if '@patch' in refs and refs['@patch'] in [1, '1']:
-                        data['patch_available'] = True
-                except Exception:
-                    pass
-
-                # If there is more than one reference, this will be a list
-                try:
-                    for rr in ii['refs']['ref']:
-                        if '@patch' in rr and rr['@patch'] in [1, '1']:
-                            data['patch_available'] = True
-                except Exception:
-                    pass
 
                 if data['id'] in ignore_source:
                     data['ignored'] = True
