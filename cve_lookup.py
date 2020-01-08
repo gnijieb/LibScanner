@@ -23,8 +23,9 @@ def parse_dbs(folder):
     root = dict()
     header_printed = False
     for filename in glob.glob(folder + '/*.json'):
-        with open(filename) as ff:
-            cve_dict = json.loads(ff.read())
+        with open(filename, encoding='utf-8') as ff:
+            cve_dict = json.load(ff)
+
             print("Processing file " + filename)
 
             if header_printed == False:
