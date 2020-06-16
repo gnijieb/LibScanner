@@ -4,11 +4,11 @@ from distutils.version import LooseVersion
 from collections import defaultdict
 
 # preload XML
-import xml.etree.cElementTree as ET
 import defusedxml.cElementTree as DET
 import re
 import glob
 import os
+import json
 
 
 xmlstring = []
@@ -20,49 +20,65 @@ def parse_dbs(folder):
     :param folder: the folder full of *.xml files
     :return:
     """
-    root = None
-    for filename in glob.glob(folder + '/*.xml'):
+    root = dict()
+    header_printed = False
+    for filename in glob.glob(folder + '/*.json'):
         with open(filename, encoding='utf-8') as ff:
-            db_string = ff.read()  # remove the annoying namespace
-            db_string = re.sub(' xmlns="[^"]+"', '', db_string, count=1)
-            # xmlstring.append(db_string)
-            data = ET.fromstring(db_string)
-            if root is None:
-                root = data
-            else:
-                root.extend(data)
+            cve_dict = json.load(ff)
 
+            print("Processing file " + filename)
+
+            if header_printed == False:
+                print("CVE_data_timestamp: "    + str(cve_dict['CVE_data_timestamp']))
+                print("CVE_data_version: "      + str(cve_dict['CVE_data_version']))
+                print("CVE_data_format: "       + str(cve_dict['CVE_data_format']))
+                print(" ")
+                header_printed = True
+
+            totalcvecount = int(str(cve_dict['CVE_data_numberOfCVEs']))
+            for cveiterator in range(0, totalcvecount):
+                if (cveiterator % 1000 == 0):
+                        print("{} of {}".format(cveiterator, totalcvecount))
+
+                patch_available = False
+                try:
+                    refs = cve_dict['CVE_Items'][cveiterator]['cve']['references']['reference_data']
+                    for reference in refs:
+                        for tag in reference['tags']:
+                            if tag == 'Patch':
+                                patch_available = True
+                except:
+                    pass
+
+                current_cve_details = {
+                    'id': str(cve_dict['CVE_Items'][cveiterator]['cve']['CVE_data_meta']['ID']),
+                    'description': cve_dict['CVE_Items'][cveiterator]['cve']['description']['description_data'][0]['value'],
+                    'impact': cve_dict['CVE_Items'][cveiterator]['impact'],
+                    'published': cve_dict['CVE_Items'][cveiterator]['publishedDate'],
+                    'patch_available': patch_available
+                }
+
+                if len(cve_dict['CVE_Items'][cveiterator]['cve']['affects']['vendor']['vendor_data']) > 0 :
+                    totalproductnamecount = len(cve_dict['CVE_Items'][cveiterator]['cve']['affects']['vendor']['vendor_data'][0]['product']['product_data'])
+                    for product_iterator in range(0,totalproductnamecount):
+                        product = cve_dict['CVE_Items'][cveiterator]['cve']['affects']['vendor']['vendor_data'][0]['product']['product_data'][product_iterator]
+                        product_name = str(product['product_name'])
+
+                        if product_name not in root:
+                            root[product_name] = list()
+
+                        vuln_list = root[product_name]
+
+                        vuln = dict()
+                        vuln['details'] = current_cve_details
+                        vuln['vers'] = list()
+
+                        for version in product['version']['version_data']:
+                            version_info = {'num': str(version['version_value']),
+                                            'prev': version['version_affected'] == '<='}
+                            vuln['vers'].append(version_info)
+                        vuln_list.append(vuln)
     return root
-
-
-# root = ET.fromstring("\n".join(xmlstring))
-# namespace ="http://nvd.nist.gov/feeds/cve/1.2"
-
-def etree_to_dict(t):
-    """
-    Change the xml tree to an easy to use python dict
-    :param t: the xml tree
-    :return: a dict representation
-    """
-    d = {t.tag: {} if t.attrib else None}
-    children = list(t)
-    if children:
-        dd = defaultdict(list)
-        for dc in map(etree_to_dict, children):
-            for k, v in dc.items():
-                dd[k].append(v)
-        d = {t.tag: {k: v[0] if len(v) == 1 else v for k, v in iter(dd.items())}}
-    if t.attrib:
-        d[t.tag].update(('@' + k, v) for k, v in iter(t.attrib.items()))
-    if t.text:
-        text = t.text.strip()
-        if children or t.attrib:
-            if text:
-                d[t.tag]['#text'] = text
-        else:
-            d[t.tag] = text
-    return d
-
 
 def get_packages_swid(package_list):
     """
@@ -112,7 +128,7 @@ def get_packages_rpm(package_list):
 
 def get_packages_yocto(package_list):
     """ Get packages from a Bitbake build history, which look like
-        apt_1.2.24-r0_armhf.deb
+        systemd_1:242+0+07f0549ffe-r0_armhf.deb
     """
 
     package_strs = package_list.split("\n")
@@ -121,12 +137,14 @@ def get_packages_yocto(package_list):
 
     for ii in package_strs:
 
-        # (.*/)*(.*?)_    Grab everything up to the first underscore
+        # (.*/)*(.*?)_    Grab everything up to the first underscore (e.g., "" and "systemd")
         #                 Anything before the last / is a path, the rest is the name
-        # (.*)-(r[0-9]+)_ Two chunks before the next underscore:
-        #                 version string and release number
-        # ([^\.]*).(.*)   Platform and file extension
-        mm = re.search(r'(.*/)*(.*?)_(.*)-(r[0-9]+)_([^\.]*).(.*)', ii)
+        # (?:[0-9]+:)?    Non-capturing group that ignores "Package Epoch" (e.g., "1:")
+        # (.?)            Version string (e.g., "242")
+        # (?:\+.*)?       Non-capturing group for optional patch commits (e.g., "+0+07f0549ffe")
+        # -(r[0-9]+)_     Release number (e.g., "r0")
+        # ([^\.]*).(.*)   Platform and file extension (e.g., "armhf" and "deb")
+        mm = re.search(r'(.*/)*(.*?)_(?:[0-9]+:)?(.*?)(?:\+.*)?-(r[0-9.]+)_([^\.]*).(.*)', ii)
         if mm:
             path, name, version, release, platform, extension = mm.groups()
             packages[name].add(version)
@@ -259,34 +277,25 @@ def get_vulns(packages, root):
     :return:
     """
     result = defaultdict(list)
-    for entry in root:
-        for vuln_soft in entry.findall("vuln_soft"):
-            for prod in vuln_soft.findall("prod"):
-                if prod.attrib['name'] in packages:
-                    # if the product name is in the package list, then see if we have an effected version
-                    #vers = [(x.attrib['num'], x.attrib.get('prev', 0)) for x in prod.findall("vers")]
-                    installed_vers = packages[prod.attrib['name']] # what versions we have installed
-                    # find exact matches between the product version and the vuln
-                    #intersection = set(vers).intersection(installed_vers)
+
+    for name, installed_vers  in packages.items():
+        if name in root:
+            prod = root[name]
+            for vuln in prod:
+                for v in vuln['vers']:
+                    version_number, prev = v['num'], v['prev']
+                    loose_version_number = LooseVersion(version_number)
                     intersection = set()
-                    # go through the list of versions and see if we have a match
-                    for v in prod.findall("vers"):
-                        version_number, prev = v.attrib['num'], v.attrib.get('prev', 0)
-                        # use Loose versioning. Better to have a false positive than a false negative.
-                        loose_version_number = LooseVersion(version_number)
-                        for iv in installed_vers: # foreach installed version
-                            # if we match the version exactly, or
-                            # we have a previous version installed and it includes previous versions
-                            # then add it to our intersection
-                            try:
-                                if iv == version_number or (prev and LooseVersion(iv) < loose_version_number):
-                                    intersection.add(iv)
-                            except Exception:
-                                print('Error parsing version for package.', file=sys.stderr)
-                                print('    Attributes: {}'.format(prod.attrib), file=sys.stderr)
-                                print('    Installed Version: {}'.format(installed_vers), file=sys.stderr)
+                    for iv in installed_vers:
+                        try:
+                            if iv == version_number or (prev and LooseVersion(iv) < loose_version_number):
+                                intersection.add(iv)
+                        except Exception:
+                            print('Error parsing version for package.', file=sys.stderr)
+                            print('    name: {}'.format(prod), file=sys.stderr)
+                            print('    Installed Version: {}'.format(installed_vers), file=sys.stderr)
 
                     if len(intersection) > 0:
                         si = ' - ' + ','.join(intersection)
-                        result[prod.attrib['name'] + si].append(etree_to_dict(entry)["entry"])
+                        result[name + si].append(vuln['details'])
     return result
